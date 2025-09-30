@@ -96,7 +96,7 @@ def main():
     test_features = get_features(test_mags, test_phases)
 
     ##TODO: Add a classifier which is trained using the training set
-
+    ## KNN for test, SVM or Logistic regression for higher accuracy
     ##TODO: Output real predictions, currently the program predicts S for every sample
     predictions = ['S']*len(test_imgs)
 
