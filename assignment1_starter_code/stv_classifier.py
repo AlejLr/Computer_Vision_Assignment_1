@@ -3,7 +3,7 @@ import csv
 import numpy as np
 from skimage import io
 import matplotlib.pyplot as plt
-from sklearn import neighbors
+from sklearn import neighbors, preprocessing, svm, linear_model
 
 def read_train_data_csv(filename):
     data_dict = {}
@@ -65,8 +65,21 @@ def get_features(mags, phases):
     ## These features will give you poor classification results
     features = np.zeros((len(mags), 2))
     for i in range(len(mags)):
+        
+        # Normalize the magnitude
+        mags = mags / np.sum(mags)
+        
+        # Normalize the phase
+        
+        # Radial bands
+        
+        # Orientation bands
+        
+        # Ratios
+        
         features[i,0] = mags[i].sum()
-        features[i,1] = phases[i].sum()
+        features[i,1] = phases[i].sum() 
+        
     return features
 
 def plot_fft(mag, phase):
