@@ -61,24 +61,41 @@ def get_fft_dataset(ims):
     return mags, phases
 
 def get_features(mags, phases):
-    ## TODO: replace these features with better features.
-    ## These features will give you poor classification results
+    
+    
     features = np.zeros((len(mags), 2))
-    for i in range(len(mags)):
+    
+    features = []
+    
+    n_radial = 8 # number of radial sectors
+    n_angular = 8 # number of angular sectors
+    mid_band = (0.2, 0.6) # min and max radius for the orientation band
+    dc_exclude = 0.02 # exclude low frequency band (center)
+    eps = 1e-12 # to avoid division by zero
+    
+    for mag in mags:
         
-        # Normalize the magnitude
-        mags = mags / np.sum(mags)
+        # Power spectrum and normalization
+        p = float(np.square(mag))
+        p = p / (np.sum(p) + eps)
         
-        # Normalize the phase
+        # Polar coordinates 
+        rows, cols = mag.shape
+        crow, ccol = rows // 2, cols // 2
+        y = np.arange(rows) - crow
+        x = np.arange(cols) - ccol
+        X, Y = np.meshgrid(x, y)
+        R = np.sqrt(X**2 + Y**2)
+        Theta = np.arctan2(Y, X)
         
-        # Radial bands
+        R_max = np.max(R)
+        r_dc = max(dc_exclude * R_max, 1)
         
-        # Orientation bands
+        # sum of energy by freq manginuted in each radial sector
         
-        # Ratios
         
-        features[i,0] = mags[i].sum()
-        features[i,1] = phases[i].sum() 
+        
+         
         
     return features
 
@@ -108,10 +125,11 @@ def main():
     train_features = get_features(mags, phases)
     test_features = get_features(test_mags, test_phases)
 
-    ##TODO: Add a classifier which is trained using the training set
-    ## KNN for test, SVM or Logistic regression for higher accuracy
-    ##TODO: Output real predictions, currently the program predicts S for every sample
-    predictions = ['S']*len(test_imgs)
+    # Classifier
+    
+    clf = neighbors.KNeighborsClassifier(n_neighbors=3)
+    clf.fit(train_features, train_labels)
+    predictions = clf.predict(test_features)
 
     predictions_file = test_csv.replace('.csv', '_predictions.csv')
     with open(predictions_file, 'w') as csvfile:
