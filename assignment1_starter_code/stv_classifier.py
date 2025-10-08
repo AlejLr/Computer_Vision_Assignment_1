@@ -92,11 +92,56 @@ def get_features(mags, phases):
         r_dc = max(dc_exclude * R_max, 1)
         
         # sum of energy by freq manginuted in each radial sector
+        ring_edges = np.linspace(r_dc, R_max, n_radial + 1)
+        radial_features = np.zeros(n_radial, dtype=float)
+        
+        for i in range(n_radial):
+            mask = (R >= ring_edges[i]) & (R < ring_edges[i + 1])
+            radial_features[i] = np.sum(p[mask])
+           
+        # Orientation band energy
+        r_min = mid_band[0] * R_max
+        r_max = mid_band[1] * R_max
+        band_mask = (R >= r_min) & (R < r_max)
+            
+        # N edges for angular sectors
+        theta_edges = np.linspace(-np.pi, np.pi, n_angular + 1)
+        angular_features = np.zeros(n_angular, dtype=float)
+        
+        for i in range(n_angular):
+            mask_angle = (Theta >= theta_edges[i]) & (Theta < theta_edges[i + 1])
+            angular_features[i] = np.sum(p[mask_angle])
         
         
+        ''' 
+        Variables for the ratios for features with n_angular = 8
+        For n_angular = 8, the edges are [-pi, -3pi/4, -pi/2, -pi/4, 0, pi/4, pi/2, 3pi/4, pi]
+        So the orientation features are:
+        Horizontal = around 0 and 180 degrees
+        Vertical = around +- 90 degrees
+        Diagonal = around +- 45 degrees
         
-         
+        This would not work for other n_angular values
+        '''
         
+        E_h = angular_features[0] + angular_features[4] + angular_features[7]
+        E_v = angular_features[2] + angular_features[6]
+        E_d = angular_features[3] + angular_features[5]
+        
+        # Low and High ratio frequencies
+
+        E_low = p[R < (0.30 * R_max)].sum()
+        E_high = p[R > (0.60 * R_max)].sum()
+        
+        ratio_low_high = E_low + eps / (E_high + eps)
+        ratio_vert_hor = (E_v + eps) / (E_h + eps)
+        ratio_diag = (E_d + eps) / (E_h + E_v + eps)
+        
+        feature_vector = np.concatenate((radial_features, angular_features,
+                                         [ratio_low_high, ratio_vert_hor, ratio_diag]))
+
+        features.append(feature_vector)
+
     return features
 
 def plot_fft(mag, phase):
