@@ -76,7 +76,7 @@ def get_features(mags, phases):
     for mag in mags:
         
         # Power spectrum and normalization
-        p = float(np.square(mag))
+        p = np.square(mag).astype(np.float64)
         p = p / (np.sum(p) + eps)
         
         # Polar coordinates 
@@ -165,16 +165,20 @@ def main():
     mags, phases = get_fft_dataset(train_imgs)
     test_mags, test_phases = get_fft_dataset(test_imgs)
 
-    plot_fft(mags[0], phases[0]) # Plots an example of magnitude and phase
+    # plot_fft(mags[0], phases[0]) # Plots an example of magnitude and phase
 
     train_features = get_features(mags, phases)
     test_features = get_features(test_mags, test_phases)
 
     # Classifier
     
+    scaler = preprocessing.StandardScaler()
+    X_train = scaler.fit_transform(train_features)
+    X_test = scaler.transform(test_features)
+    
     clf = neighbors.KNeighborsClassifier(n_neighbors=3)
-    clf.fit(train_features, train_labels)
-    predictions = clf.predict(test_features)
+    clf.fit(X_train, train_labels)
+    predictions = clf.predict(X_test)
 
     predictions_file = test_csv.replace('.csv', '_predictions.csv')
     with open(predictions_file, 'w') as csvfile:
