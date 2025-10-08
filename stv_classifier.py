@@ -68,8 +68,8 @@ def get_features(mags, phases):
     features = []
     
     n_radial = 8 # number of radial sectors
-    n_angular = 8 # number of angular sectors
-    mid_band = (0.2, 0.6) # min and max radius for the orientation band
+    n_angular = 12 # number of angular sectors
+    mid_band = (0.15, 0.85) # min and max radius for the orientation band
     dc_exclude = 0.02 # exclude low frequency band (center)
     eps = 1e-12 # to avoid division by zero
     
@@ -180,14 +180,14 @@ def evaluate_classifiers(X_train, train_labels, X_test):
         "NB-2": naive_bayes.GaussianNB(var_smoothing=1e-8),
         "NB-3": naive_bayes.GaussianNB(var_smoothing=1e-10)
     }
-    
-    classifiers = [KNN, SVM, LR, RF, NB]
-    
-    for c in classifiers:
-    
-        print("\n" + str(c) + " Evaluation \n")
-        
-        for name, clf in c.items():
+
+    classifiers = {"K-NearestNeighbors": KNN, "Support Vector Machine": SVM, "Logistic Regression": LR, "Random Forest": RF, "Naive Bayes": NB}
+
+    for model_name, model in classifiers.items():
+
+        print("\n" + str(model_name) + " Evaluation \n")
+
+        for name, clf in model.items():
             clf.fit(X_train, train_labels)
             preds = clf.predict(X_test)
             
@@ -230,13 +230,14 @@ def main():
     X_train = scaler.fit_transform(train_features)
     X_test = scaler.transform(test_features)
 
+    # Use this to evaluate multiple classifiers
+    # The result was that SVM with rbf kernel was the best with 93% accuracy
     evaluate_classifiers(X_train, train_labels, X_test)
 
-    '''
-    clf = neighbors.KNeighborsClassifier(n_neighbors=3)
+    
+    clf = svm.SVC(kernel='rbf', C=1, gamma='scale')
     clf.fit(X_train, train_labels)
     predictions = clf.predict(X_test)
-    
     
     
     # Prediction output file
@@ -247,7 +248,7 @@ def main():
         writer.writerow(['image_path', 'prediction'])
         for i, pred in enumerate(predictions):
             writer.writerow([test_img_paths[i], pred])
-    '''
+
 
 if __name__ == "__main__":
     main()
