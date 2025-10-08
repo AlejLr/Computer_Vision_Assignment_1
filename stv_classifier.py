@@ -3,7 +3,7 @@ import csv
 import numpy as np
 from skimage import io
 import matplotlib.pyplot as plt
-from sklearn import neighbors, preprocessing, svm, linear_model
+from sklearn import neighbors, preprocessing, metrics, svm, linear_model, ensemble, naive_bayes
 
 def read_train_data_csv(filename):
     data_dict = {}
@@ -144,6 +144,60 @@ def get_features(mags, phases):
 
     return features
 
+def evaluate_classifiers(X_train, train_labels, X_test):
+    
+    # Evaluates multiple classifiers and prints their accuracy
+    
+    test_labels = ['S'] * 5 + ['T'] * 5 + ['V'] * 5
+    
+    KNN = {
+        "KNN (1, uniform)": neighbors.KNeighborsClassifier(n_neighbors=1, weights='uniform', p=2),
+        "KNN (2, distance)": neighbors.KNeighborsClassifier(n_neighbors=2, weights='distance', p=2),
+        "KNN (3, distance)": neighbors.KNeighborsClassifier(n_neighbors=5, weights='distance', p=1),
+        "KNN (5, uniform)": neighbors.KNeighborsClassifier(n_neighbors=5, weights='uniform', p=2),
+        "KNN (7, uniform)": neighbors.KNeighborsClassifier(n_neighbors=7, weights='uniform', p=2)
+    }
+    
+    SVM = {
+        "SVM (linear)": svm.SVC(kernel='linear', C=1),
+        "SVM (rbf)": svm.SVC(kernel='rbf', C=1, gamma='scale'),
+        "SVM (poly)": svm.SVC(kernel='poly', C=1, degree=3, gamma='scale')
+    }
+    LR = {
+        "LR-1": linear_model.LogisticRegression(max_iter=1000, C=1.0, penalty='l2'),
+        "LR-2": linear_model.LogisticRegression(max_iter=1000, C=0.5, penalty='l2'),
+        "LR-3": linear_model.LogisticRegression(max_iter=1000, C=2.0, penalty='l2'),
+        "LR-4": linear_model.LogisticRegression(max_iter=1000, C=1.0, penalty='l1', solver='liblinear')
+    }
+    RF = {
+        "RF-1": ensemble.RandomForestClassifier(n_estimators=100, max_depth=None, random_state=42, max_features='sqrt', min_samples_leaf=1),
+        "RF-2": ensemble.RandomForestClassifier(n_estimators=200, max_depth=10, random_state=42, max_features='sqrt', min_samples_leaf=2),
+        "RF-3": ensemble.RandomForestClassifier(n_estimators=300, max_depth=15, random_state=42, max_features=0.5, min_samples_leaf=1),
+        "RF-4": ensemble.RandomForestClassifier(n_estimators=100, max_depth=8, random_state=42, max_features='log2', min_samples_leaf=1)
+    }
+    NB = {
+        "NB-1": naive_bayes.GaussianNB(var_smoothing=1e-9),
+        "NB-2": naive_bayes.GaussianNB(var_smoothing=1e-8),
+        "NB-3": naive_bayes.GaussianNB(var_smoothing=1e-10)
+    }
+    
+    classifiers = [KNN, SVM, LR, RF, NB]
+    
+    for c in classifiers:
+    
+        print("\n" + str(c) + " Evaluation \n")
+        
+        for name, clf in c.items():
+            clf.fit(X_train, train_labels)
+            preds = clf.predict(X_test)
+            
+            acc = metrics.accuracy_score(test_labels, preds)
+            print(f"{name:20s} Accuracy: {acc*100:.2f}%")
+        
+        print("\n-------------------------\n")
+    
+    
+
 def plot_fft(mag, phase):
     plt.subplot(1,2,1)
     plt.imshow(np.log10(abs(mag)+1), cmap='gray')   ## scaling magnitude so difference is visible
@@ -175,10 +229,17 @@ def main():
     scaler = preprocessing.StandardScaler()
     X_train = scaler.fit_transform(train_features)
     X_test = scaler.transform(test_features)
-    
+
+    evaluate_classifiers(X_train, train_labels, X_test)
+
+    '''
     clf = neighbors.KNeighborsClassifier(n_neighbors=3)
     clf.fit(X_train, train_labels)
     predictions = clf.predict(X_test)
+    
+    
+    
+    # Prediction output file
 
     predictions_file = test_csv.replace('.csv', '_predictions.csv')
     with open(predictions_file, 'w') as csvfile:
@@ -186,6 +247,7 @@ def main():
         writer.writerow(['image_path', 'prediction'])
         for i, pred in enumerate(predictions):
             writer.writerow([test_img_paths[i], pred])
+    '''
 
 if __name__ == "__main__":
     main()
