@@ -108,7 +108,6 @@ def get_features(mags, phases):
         # Smooth angular features
         angular_features = np.convolve(angular_features, np.ones(3)/3, mode='same')
 
-        # <------------------------------------------------------------------------>
         ''' 
         Variables for the ratios for features with n_angular = 8
         For n_angular = 8, the edges are [-pi, -3pi/4, -pi/2, -pi/4, 0, pi/4, pi/2, 3pi/4, pi]
@@ -248,7 +247,7 @@ def main():
 
     # Use this to evaluate multiple classifiers
     # The result was that 
-    evaluate_classifiers(X_train, train_labels, X_test)
+    #evaluate_classifiers(X_train, train_labels, X_test)
 
     
     clf = svm.SVC(kernel='poly', C=1, degree=3, gamma='scale')
