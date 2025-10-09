@@ -68,12 +68,12 @@ def get_features(mags, phases):
     features = []
     
     n_radial = 8 # number of radial sectors
-    n_angular = 12 # number of angular sectors
-    mid_band = (0.15, 0.85) # min and max radius for the orientation band
+    n_angular = 8 # number of angular sectors
+    mid_band = (0.2, 0.8) # min and max radius for the orientation band
     dc_exclude = 0.02 # exclude low frequency band (center)
     eps = 1e-12 # to avoid division by zero
     
-    for mag in mags:
+    for i, mag in enumerate(mags):
         
         # Power spectrum and normalization
         p = np.square(mag).astype(np.float64)
@@ -93,26 +93,22 @@ def get_features(mags, phases):
         
         # sum of energy by freq manginuted in each radial sector
         ring_edges = np.linspace(r_dc, R_max, n_radial + 1)
-        radial_features = np.zeros(n_radial, dtype=float)
+        radial_features = np.array([p[(R >= ring_edges[j]) & (R < ring_edges[j + 1])].sum() 
+                                    for j in range(n_radial)], dtype=np.float64)
         
-        for i in range(n_radial):
-            mask = (R >= ring_edges[i]) & (R < ring_edges[i + 1])
-            radial_features[i] = np.sum(p[mask])
-           
         # Orientation band energy
         r_min = mid_band[0] * R_max
         r_max = mid_band[1] * R_max
         band_mask = (R >= r_min) & (R < r_max)
-            
-        # N edges for angular sectors
+          
         theta_edges = np.linspace(-np.pi, np.pi, n_angular + 1)
-        angular_features = np.zeros(n_angular, dtype=float)
-        
-        for i in range(n_angular):
-            mask_angle = (Theta >= theta_edges[i]) & (Theta < theta_edges[i + 1])
-            angular_features[i] = np.sum(p[mask_angle])
-        
-        
+        angular_features = np.array([p[band_mask & (Theta >= theta_edges[k]) & (Theta < theta_edges[k + 1])].sum() 
+                                     for k in range(n_angular)], dtype=np.float64)
+
+        # Smooth angular features
+        angular_features = np.convolve(angular_features, np.ones(3)/3, mode='same')
+
+        # <------------------------------------------------------------------------>
         ''' 
         Variables for the ratios for features with n_angular = 8
         For n_angular = 8, the edges are [-pi, -3pi/4, -pi/2, -pi/4, 0, pi/4, pi/2, 3pi/4, pi]
@@ -128,21 +124,41 @@ def get_features(mags, phases):
         E_v = angular_features[2] + angular_features[6]
         E_d = angular_features[3] + angular_features[5]
         
-        # Low and High ratio frequencies
+        # Orientation ratios
+        ratio_vert_hor = (E_v + eps) / (E_h + eps)
+        ratio_diag = (E_d + eps) / (E_h + E_v + eps)
+        
+        
+        # Low and High energy ratios
 
         E_low = p[R < (0.30 * R_max)].sum()
         E_high = p[R > (0.60 * R_max)].sum()
         
-        ratio_low_high = E_low + eps / (E_high + eps)
-        ratio_vert_hor = (E_v + eps) / (E_h + eps)
-        ratio_diag = (E_d + eps) / (E_h + E_v + eps)
+        ratio_low_high = (E_low + eps) / (E_high + eps)
+        ratio_high_total = (E_high + eps) / (p.sum() + eps)
+
+        # Phase based features
+        phi = phases[i]
+        phi_norm = (phi - np.min(phi)) / (np.max(phi) - np.min(phi) + eps)
         
-        feature_vector = np.concatenate((radial_features, angular_features,
-                                         [ratio_low_high, ratio_vert_hor, ratio_diag]))
+        #phi_var = np.var(phi_norm)
+        
+        # Phase entropy
+        hist, _ = np.histogram(phi_norm, bins=30, range=(0, 1), density=True)
+        phi_entropy = -np.sum(hist * np.log(hist + eps))
+
+        feature_vector = np.concatenate([
+            radial_features,
+            angular_features,
+            np.array([ratio_vert_hor, ratio_diag, 
+                      ratio_low_high, ratio_high_total, 
+                      phi_entropy])
+        ])
+        
 
         features.append(feature_vector)
 
-    return features
+    return np.vstack(features)
 
 def evaluate_classifiers(X_train, train_labels, X_test):
     
@@ -231,11 +247,11 @@ def main():
     X_test = scaler.transform(test_features)
 
     # Use this to evaluate multiple classifiers
-    # The result was that SVM with rbf kernel was the best with 93% accuracy
+    # The result was that 
     evaluate_classifiers(X_train, train_labels, X_test)
 
     
-    clf = svm.SVC(kernel='rbf', C=1, gamma='scale')
+    clf = svm.SVC(kernel='poly', C=1, degree=3, gamma='scale')
     clf.fit(X_train, train_labels)
     predictions = clf.predict(X_test)
     
